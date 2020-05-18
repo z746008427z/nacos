@@ -16,15 +16,15 @@ const base = require('./webpack.base.conf');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
-const CleanWebpackPlugin = require('clean-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 const [cssLoader]  = base.module.rules;
 cssLoader.use.push({
   loader: '@alifd/next-theme-loader',
   options: {
     modifyVars: {
-      '$icon-font-path':'"/console-fe/public/icons/icon-font"',
-      '$font-custom-path': '"/console-fe/public/fonts/"'
+      '$icon-font-path': '"/nacos/console-fe/public/icons/icon-font"',
+      '$font-custom-path': '"/nacos/console-fe/public/fonts/"'
     }
   }
 })
@@ -40,8 +40,10 @@ module.exports = Object.assign({}, base, {
     ],
   },
   plugins: [
-    new CleanWebpackPlugin(path.resolve(__dirname, '../dist'), {
-      root: path.resolve(__dirname, '../'),
+    new CleanWebpackPlugin({
+      cleanOnceBeforeBuildPatterns:[
+        path.resolve(__dirname, '../dist/**'),
+      ]
     }),
     ...base.plugins,
     new MiniCssExtractPlugin({

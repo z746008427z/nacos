@@ -17,15 +17,11 @@ package com.alibaba.nacos.naming.core;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.annotation.JSONField;
-import com.alibaba.nacos.naming.misc.Loggers;
+import com.alibaba.nacos.common.utils.MD5Utils;
+import com.alibaba.nacos.api.common.Constants;
 import com.alibaba.nacos.naming.pojo.Record;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import java.math.BigInteger;
-import java.nio.charset.Charset;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,10 +34,6 @@ import java.util.Map;
  * @since 1.0.0
  */
 public class Instances implements Record {
-
-    private String cachedChecksum;
-
-    private long lastCalculateTime = 0L;
 
     private List<Instance> instanceList = new ArrayList<>();
 
@@ -61,15 +53,11 @@ public class Instances implements Record {
     @Override
     @JSONField(serialize = false)
     public String getChecksum() {
-        recalculateChecksum();
-        return cachedChecksum;
+
+        return recalculateChecksum();
     }
 
-    public String getCachedChecksum() {
-        return cachedChecksum;
-    }
-
-    private void recalculateChecksum() {
+    private String recalculateChecksum() {
         StringBuilder sb = new StringBuilder();
         Collections.sort(instanceList);
         for (Instance ip : instanceList) {
@@ -78,16 +66,8 @@ public class Instances implements Record {
             sb.append(string);
             sb.append(",");
         }
-        MessageDigest md5;
-        try {
-            md5 = MessageDigest.getInstance("MD5");
-            cachedChecksum =
-                new BigInteger(1, md5.digest((sb.toString()).getBytes(Charset.forName("UTF-8")))).toString(16);
-        } catch (NoSuchAlgorithmException e) {
-            Loggers.SRV_LOG.error("error while calculating checksum(md5) for instances", e);
-            cachedChecksum = RandomStringUtils.randomAscii(32);
-        }
-        lastCalculateTime = System.currentTimeMillis();
+
+        return MD5Utils.md5Hex(sb.toString(), Constants.ENCODE);
     }
 
     public String convertMap2String(Map<String, String> map) {

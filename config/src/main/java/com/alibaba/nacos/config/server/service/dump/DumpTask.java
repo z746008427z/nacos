@@ -15,21 +15,23 @@
  */
 package com.alibaba.nacos.config.server.service.dump;
 
+import com.alibaba.nacos.common.utils.MD5Utils;
+import com.alibaba.nacos.config.server.constant.Constants;
 import com.alibaba.nacos.config.server.manager.AbstractTask;
 import com.alibaba.nacos.config.server.manager.TaskProcessor;
 import com.alibaba.nacos.config.server.model.ConfigInfo;
 import com.alibaba.nacos.config.server.model.ConfigInfo4Beta;
 import com.alibaba.nacos.config.server.model.ConfigInfo4Tag;
+import com.alibaba.nacos.config.server.model.ConfigInfoBetaWrapper;
+import com.alibaba.nacos.config.server.model.ConfigInfoTagWrapper;
+import com.alibaba.nacos.config.server.model.ConfigInfoWrapper;
 import com.alibaba.nacos.config.server.model.Page;
 import com.alibaba.nacos.config.server.service.*;
-import com.alibaba.nacos.config.server.service.PersistService.ConfigInfoBetaWrapper;
-import com.alibaba.nacos.config.server.service.PersistService.ConfigInfoTagWrapper;
-import com.alibaba.nacos.config.server.service.PersistService.ConfigInfoWrapper;
+import com.alibaba.nacos.config.server.service.repository.PersistService;
 import com.alibaba.nacos.config.server.service.trace.ConfigTraceService;
 import com.alibaba.nacos.config.server.utils.GroupKey2;
 import com.alibaba.nacos.config.server.utils.LogUtil;
-import com.alibaba.nacos.config.server.utils.MD5;
-import com.alibaba.nacos.config.server.utils.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.sql.Timestamp;
 import java.util.List;
@@ -130,6 +132,7 @@ class DumpProcessor implements TaskProcessor {
 
     @Override
     public boolean process(String taskType, AbstractTask task) {
+        final PersistService persistService = dumpService.getPersistService();
         DumpTask dumpTask = (DumpTask)task;
         String[] pair = GroupKey2.parseKey(dumpTask.groupKey);
         String dataId = pair[0];
@@ -141,7 +144,7 @@ class DumpProcessor implements TaskProcessor {
         String tag = dumpTask.tag;
         if (isBeta) {
             // beta发布，则dump数据，更新beta缓存
-            ConfigInfo4Beta cf = dumpService.persistService.findConfigInfo4Beta(dataId, group, tenant);
+            ConfigInfo4Beta cf = persistService.findConfigInfo4Beta(dataId, group, tenant);
             boolean result;
             if (null != cf) {
                 result = ConfigService.dumpBeta(dataId, group, tenant, cf.getContent(), lastModified, cf.getBetaIps());
@@ -160,7 +163,7 @@ class DumpProcessor implements TaskProcessor {
             return result;
         } else {
             if (StringUtils.isBlank(tag)) {
-                ConfigInfo cf = dumpService.persistService.findConfigInfo(dataId, group, tenant);
+                ConfigInfo cf = persistService.findConfigInfo(dataId, group, tenant);
                 if (dataId.equals(AggrWhitelist.AGGRIDS_METADATA)) {
                     if (null != cf) {
                         AggrWhitelist.load(cf.getContent());
@@ -187,7 +190,7 @@ class DumpProcessor implements TaskProcessor {
 
                 boolean result;
                 if (null != cf) {
-                    result = ConfigService.dump(dataId, group, tenant, cf.getContent(), lastModified);
+                    result = ConfigService.dump(dataId, group, tenant, cf.getContent(), lastModified, cf.getType());
 
                     if (result) {
                         ConfigTraceService.logDumpEvent(dataId, group, tenant, null, lastModified, handleIp,
@@ -204,7 +207,7 @@ class DumpProcessor implements TaskProcessor {
                 }
                 return result;
             } else {
-                ConfigInfo4Tag cf = dumpService.persistService.findConfigInfo4Tag(dataId, group, tenant, tag);
+                ConfigInfo4Tag cf = persistService.findConfigInfo4Tag(dataId, group, tenant, tag);
                 //
                 boolean result;
                 if (null != cf) {
@@ -224,7 +227,6 @@ class DumpProcessor implements TaskProcessor {
                 return result;
             }
         }
-
     }
 
     final DumpService dumpService;
@@ -234,7 +236,7 @@ class DumpAllProcessor implements TaskProcessor {
 
     DumpAllProcessor(DumpService dumpService) {
         this.dumpService = dumpService;
-        this.persistService = dumpService.persistService;
+        this.persistService = dumpService.getPersistService();
     }
 
     @Override
@@ -242,10 +244,10 @@ class DumpAllProcessor implements TaskProcessor {
         long currentMaxId = persistService.findConfigMaxId();
         long lastMaxId = 0;
         while (lastMaxId < currentMaxId) {
-            Page<PersistService.ConfigInfoWrapper> page = persistService.findAllConfigInfoFragment(lastMaxId,
+            Page<ConfigInfoWrapper> page = persistService.findAllConfigInfoFragment(lastMaxId,
                 PAGE_SIZE);
-            if (page != null && page.getPageItems() != null) {
-                for (PersistService.ConfigInfoWrapper cf : page.getPageItems()) {
+            if (page != null && page.getPageItems() != null && !page.getPageItems().isEmpty()) {
+                for (ConfigInfoWrapper cf : page.getPageItems()) {
                     long id = cf.getId();
                     lastMaxId = id > lastMaxId ? id : lastMaxId;
                     if (cf.getDataId().equals(AggrWhitelist.AGGRIDS_METADATA)) {
@@ -261,10 +263,10 @@ class DumpAllProcessor implements TaskProcessor {
                     }
 
                     boolean result = ConfigService.dump(cf.getDataId(), cf.getGroup(), cf.getTenant(), cf.getContent(),
-                        cf.getLastModified());
+                        cf.getLastModified(), cf.getType());
 
                     final String content = cf.getContent();
-                    final String md5 = MD5.getInstance().getMD5String(content);
+                    final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
                     LogUtil.dumpLog.info("[dump-all-ok] {}, {}, length={}, md5={}",
                         GroupKey2.getKey(cf.getDataId(), cf.getGroup()), cf.getLastModified(), content.length(), md5);
                 }
@@ -286,7 +288,7 @@ class DumpAllBetaProcessor implements TaskProcessor {
 
     DumpAllBetaProcessor(DumpService dumpService) {
         this.dumpService = dumpService;
-        this.persistService = dumpService.persistService;
+        this.persistService = dumpService.getPersistService();
     }
 
     @Override
@@ -323,7 +325,7 @@ class DumpAllTagProcessor implements TaskProcessor {
 
     DumpAllTagProcessor(DumpService dumpService) {
         this.dumpService = dumpService;
-        this.persistService = dumpService.persistService;
+        this.persistService = dumpService.getPersistService();
     }
 
     @Override
@@ -361,7 +363,7 @@ class DumpChangeProcessor implements TaskProcessor {
     DumpChangeProcessor(DumpService dumpService, Timestamp startTime,
                         Timestamp endTime) {
         this.dumpService = dumpService;
-        this.persistService = dumpService.persistService;
+        this.persistService = dumpService.getPersistService();
         this.startTime = startTime;
         this.endTime = endTime;
     }
@@ -402,14 +404,14 @@ class DumpChangeProcessor implements TaskProcessor {
 
         LogUtil.defaultLog.warn("changeConfig start");
         long startChangeConfigTime = System.currentTimeMillis();
-        List<PersistService.ConfigInfoWrapper> changeConfigs = persistService
+        List<ConfigInfoWrapper> changeConfigs = persistService
             .findChangeConfig(startTime, endTime);
         LogUtil.defaultLog.warn("changeConfig count:{}", changeConfigs.size());
-        for (PersistService.ConfigInfoWrapper cf : changeConfigs) {
+        for (ConfigInfoWrapper cf : changeConfigs) {
             boolean result = ConfigService.dumpChange(cf.getDataId(), cf.getGroup(), cf.getTenant(),
                 cf.getContent(), cf.getLastModified());
             final String content = cf.getContent();
-            final String md5 = MD5.getInstance().getMD5String(content);
+            final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
             LogUtil.defaultLog.info(
                 "[dump-change-ok] {}, {}, length={}, md5={}",
                 new Object[] {

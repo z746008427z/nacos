@@ -15,38 +15,30 @@
  */
 package com.alibaba.nacos.naming.controllers;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.nacos.api.common.Constants;
-import com.alibaba.nacos.api.naming.CommonParams;
-import com.alibaba.nacos.core.utils.SystemUtils;
-import com.alibaba.nacos.core.utils.WebUtils;
-import com.alibaba.nacos.naming.cluster.ServerListManager;
+import com.alibaba.nacos.core.auth.ActionTypes;
+import com.alibaba.nacos.core.auth.Secured;
+import com.alibaba.nacos.core.cluster.NodeState;
+import com.alibaba.nacos.core.cluster.ServerMemberManager;
+import com.alibaba.nacos.core.utils.ApplicationUtils;
 import com.alibaba.nacos.naming.cluster.ServerStatusManager;
 import com.alibaba.nacos.naming.consistency.persistent.raft.RaftCore;
 import com.alibaba.nacos.naming.consistency.persistent.raft.RaftPeer;
-import com.alibaba.nacos.naming.consistency.persistent.raft.RaftPeerSet;
 import com.alibaba.nacos.naming.core.DistroMapper;
 import com.alibaba.nacos.naming.core.Service;
 import com.alibaba.nacos.naming.core.ServiceManager;
-import com.alibaba.nacos.naming.misc.SwitchDomain;
-import com.alibaba.nacos.naming.misc.SwitchEntry;
-import com.alibaba.nacos.naming.misc.SwitchManager;
-import com.alibaba.nacos.naming.misc.UtilsAndCommons;
-import com.alibaba.nacos.naming.pojo.ClusterStateView;
+import com.alibaba.nacos.naming.misc.*;
 import com.alibaba.nacos.naming.push.PushService;
-import com.alibaba.nacos.naming.web.NeedAuth;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -55,7 +47,7 @@ import java.util.List;
  * @author nkorange
  */
 @RestController
-@RequestMapping(UtilsAndCommons.NACOS_NAMING_CONTEXT + "/operator")
+@RequestMapping({UtilsAndCommons.NACOS_NAMING_CONTEXT + "/operator", UtilsAndCommons.NACOS_NAMING_CONTEXT + "/ops"})
 public class OperatorController {
 
     @Autowired
@@ -68,7 +60,7 @@ public class OperatorController {
     private ServiceManager serviceManager;
 
     @Autowired
-    private ServerListManager serverListManager;
+    private ServerMemberManager memberManager;
 
     @Autowired
     private ServerStatusManager serverStatusManager;
@@ -82,16 +74,10 @@ public class OperatorController {
     @Autowired
     private RaftCore raftCore;
 
-    @Autowired
-    private RaftPeerSet raftPeerSet;
-
     @RequestMapping("/push/state")
-    public JSONObject pushState(HttpServletRequest request) {
+    public JSONObject pushState(@RequestParam(required = false) boolean detail, @RequestParam(required = false) boolean reset) {
 
         JSONObject result = new JSONObject();
-
-        boolean detail = Boolean.parseBoolean(WebUtils.optional(request, "detail", "false"));
-        boolean reset = Boolean.parseBoolean(WebUtils.optional(request, "reset", "false"));
 
         List<PushService.Receiver.AckEntry> failedPushes = PushService.getFailedPushes();
         int failedPushCount = pushService.getFailedPushCount();
@@ -125,24 +111,23 @@ public class OperatorController {
         return result;
     }
 
-    @RequestMapping(value = "/switches", method = RequestMethod.GET)
+    @GetMapping("/switches")
     public SwitchDomain switches(HttpServletRequest request) {
         return switchDomain;
     }
 
-    @NeedAuth
-    @RequestMapping(value = "/switches", method = RequestMethod.PUT)
-    public String updateSwitch(HttpServletRequest request) throws Exception {
-        Boolean debug = Boolean.parseBoolean(WebUtils.optional(request, "debug", "false"));
-        String entry = WebUtils.required(request, "entry");
-        String value = WebUtils.required(request, "value");
+    @Secured(resource = "naming/switches", action = ActionTypes.WRITE)
+    @PutMapping("/switches")
+    public String updateSwitch(@RequestParam(required = false) boolean debug,
+                               @RequestParam String entry, @RequestParam String value) throws Exception {
 
         switchManager.update(entry, value, debug);
 
         return "ok";
     }
 
-    @RequestMapping(value = "/metrics", method = RequestMethod.GET)
+    @Secured(resource = "naming/metrics", action = ActionTypes.READ)
+    @GetMapping("/metrics")
     public JSONObject metrics(HttpServletRequest request) {
 
         JSONObject result = new JSONObject();
@@ -159,18 +144,17 @@ public class OperatorController {
         result.put("raftNotifyTaskCount", raftCore.getNotifyTaskCount());
         result.put("responsibleServiceCount", responsibleDomCount);
         result.put("responsibleInstanceCount", responsibleIPCount);
-        result.put("cpu", SystemUtils.getCPU());
-        result.put("load", SystemUtils.getLoad());
-        result.put("mem", SystemUtils.getMem());
+        result.put("cpu", ApplicationUtils.getCPU());
+        result.put("load", ApplicationUtils.getLoad());
+        result.put("mem", ApplicationUtils.getMem());
 
         return result;
     }
 
-    @RequestMapping(value = "/distro/server", method = RequestMethod.GET)
-    public JSONObject getResponsibleServer4Service(HttpServletRequest request) {
-        String namespaceId = WebUtils.optional(request, CommonParams.NAMESPACE_ID,
-            Constants.DEFAULT_NAMESPACE_ID);
-        String serviceName = WebUtils.required(request, CommonParams.SERVICE_NAME);
+    @GetMapping("/distro/server")
+    public JSONObject getResponsibleServer4Service(@RequestParam(defaultValue = Constants.DEFAULT_NAMESPACE_ID) String namespaceId,
+                                                   @RequestParam String serviceName) {
+
         Service service = serviceManager.getService(namespaceId, serviceName);
 
         if (service == null) {
@@ -184,80 +168,46 @@ public class OperatorController {
         return result;
     }
 
-    @RequestMapping(value = "/distro/status", method = RequestMethod.GET)
-    public JSONObject distroStatus(HttpServletRequest request) {
+    @GetMapping("/distro/status")
+    public JSONObject distroStatus(@RequestParam(defaultValue = "view") String action) {
 
         JSONObject result = new JSONObject();
-        String action = WebUtils.optional(request, "action", "view");
 
         if (StringUtils.equals(SwitchEntry.ACTION_VIEW, action)) {
-            result.put("status", serverListManager.getDistroConfig());
-            return result;
-        }
-
-        if (StringUtils.equals(SwitchEntry.ACTION_CLEAN, action)) {
-            serverListManager.clean();
+            result.put("status", memberManager.allMembers());
             return result;
         }
 
         return result;
     }
 
-    @RequestMapping(value = "/servers", method = RequestMethod.GET)
-    public JSONObject getHealthyServerList(HttpServletRequest request) {
+    @GetMapping("/servers")
+    public JSONObject getHealthyServerList(@RequestParam(required = false) boolean healthy) {
 
-        boolean healthy = Boolean.parseBoolean(WebUtils.optional(request, "healthy", "false"));
         JSONObject result = new JSONObject();
         if (healthy) {
-            result.put("servers", serverListManager.getHealthyServers());
+            result.put("servers", memberManager.allMembers().stream()
+            .filter(member -> member.getState() == NodeState.UP).collect(ArrayList::new,
+                            ArrayList::add, ArrayList::addAll));
         } else {
-            result.put("servers", serverListManager.getServers());
+            result.put("servers", memberManager.allMembers());
         }
 
         return result;
     }
 
-    @RequestMapping("/server/status")
-    public String serverStatus(HttpServletRequest request) {
-        String serverStatus = WebUtils.required(request, "serverStatus");
-        serverListManager.onReceiveServerStatus(serverStatus);
+    @PutMapping("/log")
+    public String setLogLevel(@RequestParam String logName, @RequestParam String logLevel) {
+        Loggers.setLogLevel(logName, logLevel);
         return "ok";
     }
 
-    @RequestMapping(value = "/cluster/states", method = RequestMethod.GET)
-    public Object listStates(HttpServletRequest request) {
+    @RequestMapping(value = "/cluster/state", method = RequestMethod.GET)
+    public JSONObject getClusterStates() {
 
-        String namespaceId = WebUtils.optional(request, CommonParams.NAMESPACE_ID,
-            Constants.DEFAULT_NAMESPACE_ID);
-        JSONObject result = new JSONObject();
-        int page = Integer.parseInt(WebUtils.required(request, "pageNo"));
-        int pageSize = Integer.parseInt(WebUtils.required(request, "pageSize"));
-        String keyword = WebUtils.optional(request, "keyword", StringUtils.EMPTY);
-        String containedInstance = WebUtils.optional(request, "instance", StringUtils.EMPTY);
+        RaftPeer peer = serviceManager.getMySelfClusterState();
 
-        List<RaftPeer> raftPeerLists = new ArrayList<>();
+        return JSON.parseObject(JSON.toJSONString(peer));
 
-        int total = serviceManager.getPagedClusterState(namespaceId, page - 1, pageSize, keyword, containedInstance, raftPeerLists,  raftPeerSet);
-
-        if (CollectionUtils.isEmpty(raftPeerLists)) {
-            result.put("clusterStateList", Collections.emptyList());
-            result.put("count", 0);
-            return result;
-        }
-
-        JSONArray clusterStateJsonArray = new JSONArray();
-        for(RaftPeer raftPeer: raftPeerLists) {
-            ClusterStateView clusterStateView = new ClusterStateView();
-            clusterStateView.setClusterTerm(raftPeer.term.intValue());
-            clusterStateView.setNodeIp(raftPeer.ip);
-            clusterStateView.setNodeState(raftPeer.state.name());
-            clusterStateView.setVoteFor(raftPeer.voteFor);
-            clusterStateView.setHeartbeatDueMs(raftPeer.heartbeatDueMs);
-            clusterStateView.setLeaderDueMs(raftPeer.leaderDueMs);
-            clusterStateJsonArray.add(clusterStateView);
-        }
-        result.put("clusterStateList", clusterStateJsonArray);
-        result.put("count", total);
-        return result;
     }
 }

@@ -21,9 +21,10 @@ import com.alibaba.nacos.config.server.model.ConfigInfoBase;
 import com.alibaba.nacos.config.server.service.ConfigService;
 import com.alibaba.nacos.config.server.service.DiskUtil;
 import com.alibaba.nacos.config.server.service.LongPollingService;
-import com.alibaba.nacos.config.server.service.PersistService;
+import com.alibaba.nacos.config.server.service.repository.PersistService;
 import com.alibaba.nacos.config.server.service.trace.ConfigTraceService;
 import com.alibaba.nacos.config.server.utils.*;
+import com.alibaba.nacos.core.utils.Loggers;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-import static com.alibaba.nacos.core.utils.SystemUtils.STANDALONE_MODE;
 import static com.alibaba.nacos.config.server.utils.LogUtil.pullLog;
 
 /**
@@ -67,7 +67,7 @@ public class ConfigServletInner {
      */
     public String doPollingConfig(HttpServletRequest request, HttpServletResponse response,
                                   Map<String, String> clientMd5Map, int probeRequestSize)
-        throws IOException, ServletException {
+        throws IOException {
 
         // 长轮询
         if (LongPollingService.isSupportLongPolling(request)) {
@@ -98,6 +98,8 @@ public class ConfigServletInner {
             request.setAttribute("content", newResult);
         }
 
+        Loggers.AUTH.info("new content:" + newResult);
+
         // 禁用缓存
         response.setHeader("Pragma", "no-cache");
         response.setDateHeader("Expires", 0);
@@ -114,7 +116,7 @@ public class ConfigServletInner {
         final String groupKey = GroupKey2.getKey(dataId, group, tenant);
         String autoTag = request.getHeader("Vipserver-Tag");
         String requestIpApp = RequestUtil.getAppName(request);
-        int lockResult = tryConfigReadLock(request, response, groupKey);
+        int lockResult = tryConfigReadLock(groupKey);
 
         final String requestIp = RequestUtil.getRemoteIp(request);
         boolean isBeta = false;
@@ -130,6 +132,8 @@ public class ConfigServletInner {
                             isBeta = true;
                         }
                     }
+                    String configType = cacheItem.getType();
+                    response.setHeader("Config-Type", (null != configType) ? configType : "text");
                 }
                 File file = null;
                 ConfigInfoBase configInfoBase = null;
@@ -137,7 +141,7 @@ public class ConfigServletInner {
                 if (isBeta) {
                     md5 = cacheItem.getMd54Beta();
                     lastModified = cacheItem.getLastModifiedTs4Beta();
-                    if (STANDALONE_MODE && !PropertyUtil.isStandaloneUseMysql()) {
+                    if (PropertyUtil.isDirectRead()) {
                         configInfoBase = persistService.findConfigInfo4Beta(dataId, group, tenant);
                     } else {
                         file = DiskUtil.targetBetaFile(dataId, group, tenant);
@@ -154,7 +158,7 @@ public class ConfigServletInner {
                                     lastModified = cacheItem.tagLastModifiedTs.get(autoTag);
                                 }
                             }
-                            if (STANDALONE_MODE && !PropertyUtil.isStandaloneUseMysql()) {
+                            if (PropertyUtil.isDirectRead()) {
                                 configInfoBase = persistService.findConfigInfo4Tag(dataId, group, tenant, autoTag);
                             } else {
                                 file = DiskUtil.targetTagFile(dataId, group, tenant, autoTag);
@@ -165,7 +169,7 @@ public class ConfigServletInner {
                         } else {
                             md5 = cacheItem.getMd5();
                             lastModified = cacheItem.getLastModifiedTs();
-                            if (STANDALONE_MODE && !PropertyUtil.isStandaloneUseMysql()) {
+                            if (PropertyUtil.isDirectRead()) {
                                 configInfoBase = persistService.findConfigInfo(dataId, group, tenant);
                             } else {
                                 file = DiskUtil.targetFile(dataId, group, tenant);
@@ -197,7 +201,7 @@ public class ConfigServletInner {
                                 }
                             }
                         }
-                        if (STANDALONE_MODE && !PropertyUtil.isStandaloneUseMysql()) {
+                        if (PropertyUtil.isDirectRead()) {
                             configInfoBase = persistService.findConfigInfo4Tag(dataId, group, tenant, tag);
                         } else {
                             file = DiskUtil.targetTagFile(dataId, group, tenant, tag);
@@ -227,14 +231,14 @@ public class ConfigServletInner {
                 response.setHeader("Pragma", "no-cache");
                 response.setDateHeader("Expires", 0);
                 response.setHeader("Cache-Control", "no-cache,no-store");
-                if (STANDALONE_MODE && !PropertyUtil.isStandaloneUseMysql()) {
+                if (PropertyUtil.isDirectRead()) {
                     response.setDateHeader("Last-Modified", lastModified);
                 } else {
                     fis = new FileInputStream(file);
                     response.setDateHeader("Last-Modified", file.lastModified());
                 }
 
-                if (STANDALONE_MODE && !PropertyUtil.isStandaloneUseMysql()) {
+                if (PropertyUtil.isDirectRead()) {
                     out = response.getWriter();
                     out.print(configInfoBase.getContent());
                     out.flush();
@@ -287,8 +291,7 @@ public class ConfigServletInner {
         ConfigService.releaseReadLock(groupKey);
     }
 
-    private static int tryConfigReadLock(HttpServletRequest request, HttpServletResponse response, String groupKey)
-        throws IOException, ServletException {
+    private static int tryConfigReadLock(String groupKey) {
         /**
          *  默认加锁失败
          */

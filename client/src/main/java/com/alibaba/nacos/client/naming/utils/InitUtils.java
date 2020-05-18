@@ -20,6 +20,7 @@ import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.SystemPropertyKeyConst;
 import com.alibaba.nacos.api.common.Constants;
 import com.alibaba.nacos.client.utils.*;
+import com.alibaba.nacos.common.utils.StringUtils;
 
 import java.util.Properties;
 import java.util.concurrent.Callable;
@@ -46,7 +47,7 @@ public class InitUtils {
                 System.getProperty(SystemPropertyKeyConst.IS_USE_CLOUD_NAMESPACE_PARSING,
                     String.valueOf(Constants.DEFAULT_USE_CLOUD_NAMESPACE_PARSING)));
 
-        if (Boolean.valueOf(isUseCloudNamespaceParsing)) {
+        if (Boolean.parseBoolean(isUseCloudNamespaceParsing)) {
 
             tmpNamespace = TenantUtil.getUserTenantForAns();
             tmpNamespace = TemplateUtils.stringEmptyAndThenExecute(tmpNamespace, new Callable<String>() {
@@ -116,7 +117,7 @@ public class InitUtils {
                 System.getProperty(SystemPropertyKeyConst.IS_USE_ENDPOINT_PARSING_RULE,
                     String.valueOf(ParamUtil.USE_ENDPOINT_PARSING_RULE_DEFAULT_VALUE)));
 
-        boolean isUseEndpointParsingRule = Boolean.valueOf(isUseEndpointRuleParsing);
+        boolean isUseEndpointParsingRule = Boolean.parseBoolean(isUseEndpointRuleParsing);
         String endpointUrl;
         if (isUseEndpointParsingRule) {
             // Get the set domain name information

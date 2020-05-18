@@ -20,8 +20,10 @@ import com.alibaba.fastjson.TypeReference;
 import com.alibaba.fastjson.parser.ParserConfig;
 import com.alibaba.fastjson.serializer.SerializeConfig;
 import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.naming.pojo.AbstractHealthChecker;
-import com.alibaba.nacos.naming.exception.NacosException;
+import com.alibaba.nacos.common.utils.VersionUtils;
+import com.alibaba.nacos.core.utils.ApplicationUtils;
 import com.alibaba.nacos.naming.healthcheck.JsonAdapter;
 import com.alibaba.nacos.naming.selector.Selector;
 import com.alibaba.nacos.naming.selector.SelectorJsonAdapter;
@@ -31,8 +33,6 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
-
-import static com.alibaba.nacos.core.utils.SystemUtils.NACOS_HOME;
 
 /**
  * @author nacos
@@ -70,7 +70,7 @@ public class UtilsAndCommons {
 
     public static final String NACOS_SERVER_HEADER = "Nacos-Server";
 
-    public static final String NACOS_VERSION = "1.0.1";
+    public static final String NACOS_VERSION = VersionUtils.VERSION;
 
     public static final String SUPER_TOKEN = "xy";
 
@@ -116,7 +116,7 @@ public class UtilsAndCommons {
 
     public static final String UPDATE_INSTANCE_ACTION_REMOVE = "remove";
 
-    public static final String DATA_BASE_DIR = NACOS_HOME + File.separator + "data" + File.separator + "naming";
+    public static final String DATA_BASE_DIR = ApplicationUtils.getNacosHome() + File.separator + "data" + File.separator + "naming";
 
     public static final String NUMBER_PATTERN = "^\\d+$";
 
@@ -192,18 +192,6 @@ public class UtilsAndCommons {
             }
         });
 
-    }
-
-    public static String getAllExceptionMsg(Throwable e) {
-        Throwable cause = e;
-        StringBuilder strBuilder = new StringBuilder();
-
-        while (cause != null && !StringUtils.isEmpty(cause.getMessage())) {
-            strBuilder.append("caused: ").append(cause.getMessage()).append(";");
-            cause = cause.getCause();
-        }
-
-        return strBuilder.toString();
     }
 
     public static String getSwitchDomainKey() {

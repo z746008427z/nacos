@@ -15,6 +15,8 @@
  */
 package com.alibaba.nacos.test.naming;
 
+import com.alibaba.nacos.test.BaseTest;
+
 import java.util.*;
 
 /**
@@ -23,10 +25,11 @@ import java.util.*;
  * @author wangtong.wt
  * @date 2018/6/20
  */
-public class RandomUtils {
+public class RandomUtils extends BaseTest {
     private static Random rd = new Random();
     private static int UNICODE_START = 19968;
     private static int UNICODE_END = 40864;
+    private static final String  STRING_POOL = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     private RandomUtils() {
     }
@@ -132,13 +135,12 @@ public class RandomUtils {
     }
 
     public static String getRandomString(int length) {
-        StringBuffer buffer = new StringBuffer("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         Random random = new Random();
-        int range = buffer.length();
+        int range = STRING_POOL.length();
 
         for(int i = 0; i < length; ++i) {
-            sb.append(buffer.charAt(random.nextInt(range)));
+            sb.append(STRING_POOL.charAt(random.nextInt(range)));
         }
 
         return sb.toString();

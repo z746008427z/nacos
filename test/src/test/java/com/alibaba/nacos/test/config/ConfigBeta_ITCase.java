@@ -16,23 +16,12 @@
 
 package com.alibaba.nacos.test.config;
 
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.alibaba.fastjson.JSONObject;
-import com.alibaba.nacos.api.NacosFactory;
-import com.alibaba.nacos.api.PropertyKeyConst;
+import com.alibaba.nacos.Nacos;
 import com.alibaba.nacos.api.config.ConfigService;
-import com.alibaba.nacos.api.config.listener.Listener;
 import com.alibaba.nacos.api.exception.NacosException;
-import com.alibaba.nacos.config.server.Config;
-import com.alibaba.nacos.naming.misc.HttpClient.HttpResult;
-import com.alibaba.nacos.test.naming.NamingBase;
-import com.alibaba.nacos.test.naming.Params;
-
+import com.alibaba.nacos.core.utils.ApplicationUtils;
+import com.alibaba.nacos.test.base.Params;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -43,27 +32,27 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity.HeadersBuilder;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.concurrent.CountDownLatch;
 
 /**
  * @author xiaochun.xxc
  * @date 2019-07-03
  **/
 @RunWith(SpringRunner.class)
-@SpringBootTest(classes = Config.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = Nacos.class, properties = {"server.servlet.context-path=/nacos"},
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class ConfigBeta_ITCase {
 
     @LocalServerPort
     private int port;
 
     private String url;
-
-    private ConfigService configService;
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -172,12 +161,17 @@ public class ConfigBeta_ITCase {
      */
     @Test
     public void publishBetaConfig_noBetaIps() throws Exception {
+
         HttpHeaders headers = new HttpHeaders(); //不存在betaIps
+
+        final String dataId = "publishBetaConfig_noBetaIps";
+        final String groupId = "publishBetaConfig_noBetaIps";
+        final String content = "publishBetaConfig_noBetaIps";
 
         ResponseEntity<String> response = request(CONFIG_CONTROLLER_PATH + "/configs", headers,
             Params.newParams()
                 .appendParam("dataId", dataId)
-                .appendParam("group", group)
+                .appendParam("group", groupId)
                 .appendParam("tenant", tenant)
                 .appendParam("content", content)
                 .appendParam("config_tags", "")
@@ -186,19 +180,18 @@ public class ConfigBeta_ITCase {
             String.class,
             HttpMethod.POST);
         Assert.assertTrue(response.getStatusCode().is2xxSuccessful());
-        System.out.println(response.getBody());
         Assert.assertEquals("true", response.getBody());
 
         ResponseEntity<String> response1 = request(CONFIG_CONTROLLER_PATH + "/configs?beta=false",
             Params.newParams()
                 .appendParam("dataId", dataId)
-                .appendParam("group", group)
+                .appendParam("group", groupId)
                 .appendParam("tenant", tenant)
                 .done(),
             String.class,
             HttpMethod.GET);
+        System.out.println(response1);
         Assert.assertTrue(response1.getStatusCode().is2xxSuccessful());
-        System.out.println(response1.getBody());
         Assert.assertEquals(content, response1.getBody());
     }
 
