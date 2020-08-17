@@ -16,57 +16,73 @@
 
 package com.alibaba.nacos.common.http;
 
-import com.alibaba.nacos.common.utils.ShutdownUtils;
+import com.alibaba.nacos.common.utils.ExceptionUtil;
+import com.alibaba.nacos.common.utils.ThreadUtils;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
- * Use the same HttpClient object in the same space
+ * Use the same HttpClient object in the same space.
  *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
+ * @deprecated Refer to the new {@link HttpClientBeanHolder}
  */
-@SuppressWarnings("all")
+@Deprecated
 public class HttpClientManager {
-
-	private static final Logger logger = LoggerFactory.getLogger(HttpClientManager.class);
-
-	private static final int TIMEOUT = Integer.getInteger("nacos.http.timeout", 5000);
-
-	private static final RequestConfig DEFAULT_CONFIG = RequestConfig.custom()
-			.setConnectTimeout(TIMEOUT).setSocketTimeout(TIMEOUT << 1).build();
-
-	private static final NSyncHttpClient SYNC_HTTP_CLIENT = new NacosSyncHttpClient(
-			HttpClients.custom().setDefaultRequestConfig(DEFAULT_CONFIG).build());
-
-	private static final NAsyncHttpClient ASYNC_HTTP_CLIENT = new NacosAsyncHttpClient(
-			HttpAsyncClients.custom().setDefaultRequestConfig(DEFAULT_CONFIG).build());
-
-	static {
-		ShutdownUtils.addShutdownHook(new Runnable() {
-			@Override
-			public void run() {
-				logger.warn("[HttpClientManager] Start destroying HttpClient");
-				try {
-					SYNC_HTTP_CLIENT.close();
-					ASYNC_HTTP_CLIENT.close();
-				}
-				catch (Exception ignore) {
-				}
-				logger.warn("[HttpClientManager] Destruction of the end");
-			}
-		});
-
-	}
-
-	public static NSyncHttpClient getSyncHttpClient() {
-		return SYNC_HTTP_CLIENT;
-	}
-
-	public static NAsyncHttpClient getAsyncHttpClient() {
-		return ASYNC_HTTP_CLIENT;
-	}
-
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpClientManager.class);
+    
+    private static final int TIMEOUT = Integer.getInteger("nacos.http.timeout", 5000);
+    
+    private static final RequestConfig DEFAULT_CONFIG = RequestConfig.custom().setConnectTimeout(TIMEOUT)
+            .setSocketTimeout(TIMEOUT << 1).build();
+    
+    private static final NSyncHttpClient SYNC_HTTP_CLIENT = new NacosSyncHttpClient(
+            HttpClients.custom().setDefaultRequestConfig(DEFAULT_CONFIG).build());
+    
+    private static final NAsyncHttpClient ASYNC_HTTP_CLIENT = new NacosAsyncHttpClient(
+            HttpAsyncClients.custom().setDefaultRequestConfig(DEFAULT_CONFIG).build());
+    
+    private static final AtomicBoolean ALREADY_SHUTDOWN = new AtomicBoolean(false);
+    
+    static {
+        ThreadUtils.addShutdownHook(new Runnable() {
+            @Override
+            public void run() {
+                shutdown();
+            }
+        });
+        
+    }
+    
+    public static NSyncHttpClient getSyncHttpClient() {
+        return SYNC_HTTP_CLIENT;
+    }
+    
+    public static NAsyncHttpClient getAsyncHttpClient() {
+        return ASYNC_HTTP_CLIENT;
+    }
+    
+    /**
+     * Shutdown http client manager and close http client.
+     */
+    public static void shutdown() {
+        if (!ALREADY_SHUTDOWN.compareAndSet(false, true)) {
+            return;
+        }
+        LOGGER.warn("[HttpClientManager] Start destroying HttpClient");
+        try {
+            SYNC_HTTP_CLIENT.close();
+            ASYNC_HTTP_CLIENT.close();
+        } catch (Exception ex) {
+            LOGGER.error("An exception occurred when the HTTP client was closed : {}", ExceptionUtil.getStackTrace(ex));
+        }
+        LOGGER.warn("[HttpClientManager] Destruction of the end");
+    }
+    
 }

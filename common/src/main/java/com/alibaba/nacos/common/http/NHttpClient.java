@@ -19,8 +19,12 @@ package com.alibaba.nacos.common.http;
 import java.io.Closeable;
 
 /**
+ * Nacos http client interface.
+ *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
+ * @deprecated Refer to the new {@link com.alibaba.nacos.common.http.client.request.HttpClientRequest}
  */
+@Deprecated
 @SuppressWarnings("PMD.ClassNamingShouldBeCamelRule")
 public interface NHttpClient extends Closeable {
 

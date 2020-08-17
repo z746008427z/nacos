@@ -18,31 +18,71 @@ package com.alibaba.nacos.core.utils;
 
 import com.alibaba.nacos.common.utils.LoggerUtils;
 import com.alibaba.nacos.common.utils.Pair;
+import com.alibaba.nacos.common.utils.StringUtils;
 import org.slf4j.Logger;
 
-import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
- * Simple task time calculation
+ * Simple task time calculation，Currently only the task time statistics task that supports synchronizing code blocks is
+ * supported.
  *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 public class TimerContext {
-
+    
     private static final ThreadLocal<Pair<String, Long>> TIME_RECORD = new ThreadLocal<>();
-
-    public static void start(String name) {
+    
+    public static void start(final String name) {
         long startTime = System.currentTimeMillis();
         TIME_RECORD.set(Pair.with(name, startTime));
     }
-
+    
     public static void end(final Logger logger) {
+        end(logger, LoggerUtils.DEBUG);
+    }
+    
+    /**
+     * End the task and print based on the log level.
+     *
+     * @param logger logger
+     * @param level  logger level
+     */
+    public static void end(final Logger logger, final String level) {
         long endTime = System.currentTimeMillis();
         Pair<String, Long> record = TIME_RECORD.get();
-        LoggerUtils.printIfDebugEnabled(logger, "{} cost time : {} ms", record.getFirst(), (endTime - record.getSecond()));
+        if (StringUtils.equals(level, LoggerUtils.DEBUG)) {
+            LoggerUtils.printIfDebugEnabled(logger, "{} cost time : {} ms", record.getFirst(),
+                    (endTime - record.getSecond()));
+        }
+        if (StringUtils.equals(level, LoggerUtils.INFO)) {
+            LoggerUtils.printIfInfoEnabled(logger, "{} cost time : {} ms", record.getFirst(),
+                    (endTime - record.getSecond()));
+        }
+        if (StringUtils.equals(level, LoggerUtils.TRACE)) {
+            LoggerUtils.printIfTraceEnabled(logger, "{} cost time : {} ms", record.getFirst(),
+                    (endTime - record.getSecond()));
+        }
+        if (StringUtils.equals(level, LoggerUtils.ERROR)) {
+            LoggerUtils.printIfErrorEnabled(logger, "{} cost time : {} ms", record.getFirst(),
+                    (endTime - record.getSecond()));
+        }
+        if (StringUtils.equals(level, LoggerUtils.WARN)) {
+            LoggerUtils.printIfWarnEnabled(logger, "{} cost time : {} ms", record.getFirst(),
+                    (endTime - record.getSecond()));
+        }
         TIME_RECORD.remove();
     }
-
+    
+    /**
+     * Execution with time-consuming calculations for {@link Runnable}.
+     *
+     * @param job    runnable
+     * @param name   job name
+     * @param logger logger
+     */
     public static void run(final Runnable job, final String name, final Logger logger) {
         start(name);
         try {
@@ -51,14 +91,55 @@ public class TimerContext {
             end(logger);
         }
     }
-
-    public static <V> V run(final Callable<V> job, final String name, final Logger logger) throws Exception {
+    
+    /**
+     * Execution with time-consuming calculations for {@link Supplier}.
+     *
+     * @param job    Supplier
+     * @param name   job name
+     * @param logger logger
+     */
+    public static <V> V run(final Supplier<V> job, final String name, final Logger logger) {
         start(name);
         try {
-            return job.call();
+            return job.get();
         } finally {
             end(logger);
         }
     }
-
+    
+    /**
+     * Execution with time-consuming calculations for {@link Function}.
+     *
+     * @param job    Function
+     * @param args   args
+     * @param name   job name
+     * @param logger logger
+     */
+    public static <T, R> R run(final Function<T, R> job, T args, final String name, final Logger logger) {
+        start(name);
+        try {
+            return job.apply(args);
+        } finally {
+            end(logger);
+        }
+    }
+    
+    /**
+     * Execution with time-consuming calculations for {@link Consumer}.
+     *
+     * @param job    Consumer
+     * @param args   args
+     * @param name   job name
+     * @param logger logger
+     */
+    public static <T> void run(final Consumer<T> job, T args, final String name, final Logger logger) {
+        start(name);
+        try {
+            job.accept(args);
+        } finally {
+            end(logger);
+        }
+    }
+    
 }

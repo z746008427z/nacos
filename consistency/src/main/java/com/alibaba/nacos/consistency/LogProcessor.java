@@ -17,52 +17,48 @@
 package com.alibaba.nacos.consistency;
 
 import com.alibaba.nacos.consistency.entity.GetRequest;
-import com.alibaba.nacos.consistency.entity.GetResponse;
 import com.alibaba.nacos.consistency.entity.Log;
-
-import java.util.concurrent.CompletableFuture;
+import com.alibaba.nacos.consistency.entity.Response;
 
 /**
- * Can be discovered through SPI or Spring,
- * This interface is just a function definition interface. Different consistency protocols
- * have their own LogDispatcher. It is not recommended to directly implement this interface.
+ * Can be discovered through SPI or Spring, This interface is just a function definition interface. Different
+ * consistency protocols have their own LogDispatcher. It is not recommended to directly implement this interface.
  *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 @SuppressWarnings("PMD.AbstractClassShouldStartWithAbstractNamingRule")
 public abstract class LogProcessor {
-
+    
     /**
-     * get data by key
+     * get data by key.
      *
      * @param request request {@link GetRequest}
      * @return target type data
      */
-    public abstract GetResponse getData(GetRequest request);
-
+    public abstract Response onRequest(GetRequest request);
+    
     /**
-     * Process Submitted Log
+     * Process Submitted Log.
      *
      * @param log {@link Log}
      * @return {@link boolean}
      */
-    public abstract LogFuture onApply(Log log);
-
+    public abstract Response onApply(Log log);
+    
     /**
-     * Irremediable errors that need to trigger business price cuts
+     * Irremediable errors that need to trigger business price cuts.
      *
      * @param error {@link Throwable}
      */
     public void onError(Throwable error) {
     }
-
+    
     /**
-     * In order for the state machine that handles the transaction to be able to route
-     * the Log to the correct LogProcessor, the LogProcessor needs to have an identity
-     * information
+     * In order for the state machine that handles the transaction to be able to route the Log to the correct
+     * LogProcessor, the LogProcessor needs to have an identity information.
      *
      * @return Business unique identification name
      */
     public abstract String group();
-
+    
 }

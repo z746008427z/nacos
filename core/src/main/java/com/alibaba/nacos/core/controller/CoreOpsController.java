@@ -31,40 +31,45 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * Kernel modules operate and maintain HTTP interfaces.
+ *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 @RestController
 @RequestMapping(Commons.NACOS_CORE_CONTEXT + "/ops")
 public class CoreOpsController {
-
-	private final ProtocolManager protocolManager;
-	private final IdGeneratorManager idGeneratorManager;
-
-	public CoreOpsController(ProtocolManager protocolManager,
-			IdGeneratorManager idGeneratorManager) {
-		this.protocolManager = protocolManager;
-		this.idGeneratorManager = idGeneratorManager;
-	}
-
-	// Temporarily overpassed the raft operations interface
-	// {
-	//		"groupId": "xxx",
-	//      "command": "transferLeader or doSnapshot or resetRaftCluster or removePeer"
-	//		"value": "ip:{raft_port}"
-	// }
-
-	@PostMapping(value = "/raft")
-	public RestResult<String> raftOps(@RequestBody Map<String, String> commands) {
-		return protocolManager.getCpProtocol().execute(commands);
-	}
-
-	@GetMapping(value = "/idInfo")
-	public RestResult<Map<String, Map<Object, Object>>> idInfo() {
-		Map<String, Map<Object, Object>> info = new HashMap<>(10);
-		idGeneratorManager.getGeneratorMap()
-				.forEach(
-						(resource, idGenerator) -> info.put(resource, idGenerator.info()));
-		return RestResultUtils.success(info);
-	}
-
+    
+    private final ProtocolManager protocolManager;
+    
+    private final IdGeneratorManager idGeneratorManager;
+    
+    public CoreOpsController(ProtocolManager protocolManager, IdGeneratorManager idGeneratorManager) {
+        this.protocolManager = protocolManager;
+        this.idGeneratorManager = idGeneratorManager;
+    }
+    
+    // Temporarily overpassed the raft operations interface
+    // {
+    //      "groupId": "xxx",
+    //      "command": "transferLeader or doSnapshot or resetRaftCluster or removePeer"
+    //      "value": "ip:{raft_port}"
+    // }
+    
+    @PostMapping(value = "/raft")
+    public RestResult<String> raftOps(@RequestBody Map<String, String> commands) {
+        return protocolManager.getCpProtocol().execute(commands);
+    }
+    
+    /**
+     * Gets the current health of the ID generator.
+     *
+     * @return {@link RestResult}
+     */
+    @GetMapping(value = "/idInfo")
+    public RestResult<Map<String, Map<Object, Object>>> idInfo() {
+        Map<String, Map<Object, Object>> info = new HashMap<>(10);
+        idGeneratorManager.getGeneratorMap().forEach((resource, idGenerator) -> info.put(resource, idGenerator.info()));
+        return RestResultUtils.success(info);
+    }
+    
 }

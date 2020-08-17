@@ -1,9 +1,12 @@
 /*
  * Copyright 1999-2018 Alibaba Group Holding Ltd.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -91,6 +94,7 @@ const I18N_CONF = {
     namespaceNames: 'Namespaces',
     namespaceNumber: 'Namespace ID',
     namespaceOperation: 'Actions',
+    refresh: 'Refresh',
   },
   ServiceList: {
     serviceList: 'Service List',
@@ -219,6 +223,7 @@ const I18N_CONF = {
     queryResult: 'Search Results: Found',
     articleMeet: 'configuration items.',
     lastUpdateTime: 'Last Modified At',
+    operator: 'Operator',
     operation: 'Operation',
   },
   HistoryDetail: {
@@ -230,6 +235,7 @@ const I18N_CONF = {
     moreAdvancedOptions: 'Advanced Options',
     home: 'Application:',
     actionType: 'Action Type:',
+    operator: 'Operator:',
     configureContent: 'Configuration Content:',
     back: 'Back',
   },
@@ -303,6 +309,7 @@ const I18N_CONF = {
     cloneSuccEnd: 'configuration items cloned',
     cloneFail: 'Clone failed',
     getNamespaceFailed: 'get the namespace failed',
+    getNamespace403: 'Without permission to access ${namespaceName} namespace!',
     startCloning: 'Start Clone',
     cloningConfiguration: 'Clone config',
     source: 'Source :',
@@ -316,6 +323,7 @@ const I18N_CONF = {
     delSelectedAlertContent: 'please select the configuration to delete',
     delSuccessMsg: 'delete successful',
     cloneEditableTitle: 'Modify Data Id and Group (optional)',
+    authFail: 'Auth failed',
   },
   NewConfig: {
     newListingMain: 'Create Configuration',
@@ -516,6 +524,7 @@ const I18N_CONF = {
     username: 'Username',
     password: 'Password',
     operation: 'Operation',
+    refresh: 'Refresh',
   },
   NewUser: {
     createUser: 'Create user',
@@ -549,6 +558,7 @@ const I18N_CONF = {
     operation: 'Operation',
     deleteRole: 'Delete',
     deleteRoleTip: 'Do you want to delete this role?',
+    refresh: 'Refresh',
   },
   NewRole: {
     bindingRoles: 'Binding roles',
@@ -571,6 +581,7 @@ const I18N_CONF = {
     readOnly: 'read only',
     writeOnly: 'write only',
     readWrite: 'Read and write',
+    refresh: 'Refresh',
   },
   NewPermissions: {
     addPermission: 'Add Permission',
