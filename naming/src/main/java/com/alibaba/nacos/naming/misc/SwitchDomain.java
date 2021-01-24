@@ -36,6 +36,8 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class SwitchDomain implements Record, Cloneable {
     
+    private static final long serialVersionUID = 7619505097145337232L;
+    
     private List<String> masters;
     
     private Map<String, Integer> adWeightMap = new HashMap<>();
@@ -95,6 +97,8 @@ public class SwitchDomain implements Record, Cloneable {
     private String pushPythonVersion = "0.4.3";
     
     private String pushCVersion = "1.0.12";
+
+    private String pushCSharpVersion = "0.9.0";
     
     private boolean enableAuthentication = false;
     
@@ -327,6 +331,14 @@ public class SwitchDomain implements Record, Cloneable {
     
     public void setPushGoVersion(String pushGoVersion) {
         this.pushGoVersion = pushGoVersion;
+    }
+
+    public String getPushCSharpVersion() {
+        return pushCSharpVersion;
+    }
+
+    public void setPushCSharpVersion(String pushCSharpVersion) {
+        this.pushCSharpVersion = pushCSharpVersion;
     }
     
     public String getPushJavaVersion() {

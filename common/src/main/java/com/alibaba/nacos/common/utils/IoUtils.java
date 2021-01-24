@@ -50,9 +50,9 @@ public class IoUtils {
      *
      * @param raw compress stream
      * @return byte array after decompress
-     * @throws Exception exception
+     * @throws IOException exception
      */
-    public static byte[] tryDecompress(InputStream raw) throws Exception {
+    public static byte[] tryDecompress(InputStream raw) throws IOException {
         GZIPInputStream gis = null;
         ByteArrayOutputStream out = null;
         try {
@@ -60,15 +60,11 @@ public class IoUtils {
             out = new ByteArrayOutputStream();
             copy(gis, out);
             return out.toByteArray();
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            if (out != null) {
-                out.close();
-            }
-            if (gis != null) {
-                gis.close();
-            }
+            closeQuietly(out);
+            closeQuietly(gis);
         }
         
         return null;
@@ -94,12 +90,8 @@ public class IoUtils {
             IoUtils.copy(gis, out);
             return out.toByteArray();
         } finally {
-            if (out != null) {
-                out.close();
-            }
-            if (gis != null) {
-                gis.close();
-            }
+            closeQuietly(out);
+            closeQuietly(gis);
         }
     }
     
@@ -122,9 +114,7 @@ public class IoUtils {
             os.write(data.getBytes(encoding));
             os.flush();
         } finally {
-            if (null != os) {
-                os.close();
-            }
+            closeQuietly(os);
         }
     }
     
@@ -311,12 +301,8 @@ public class IoUtils {
             sc = new FileInputStream(sf).getChannel();
             sc.transferTo(0, sc.size(), tc);
         } finally {
-            if (null != sc) {
-                sc.close();
-            }
-            if (null != tc) {
-                tc.close();
-            }
+            closeQuietly(sc);
+            closeQuietly(tc);
         }
     }
     

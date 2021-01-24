@@ -17,7 +17,7 @@
 package com.alibaba.nacos.client.config.impl;
 
 import com.alibaba.nacos.api.common.Constants;
-import com.alibaba.nacos.client.identify.Base64;
+import com.alibaba.nacos.common.codec.Base64;
 import com.alibaba.nacos.client.identify.CredentialService;
 import com.alibaba.nacos.common.utils.StringUtils;
 
@@ -72,6 +72,10 @@ public class SpasAdapter {
     
     public static String getAk() {
         return CredentialService.getInstance().getCredential().getAccessKey();
+    }
+    
+    public static void freeCredentialInstance() {
+        CredentialService.freeInstance();
     }
     
     /**
