@@ -28,6 +28,8 @@ const I18N_CONF = {
   },
   Login: {
     login: 'Login',
+    internalSysTip1: 'Internal system.',
+    internalSysTip2: 'Not exposed to the public network',
     submit: 'Submit',
     pleaseInputUsername: 'Please input username',
     pleaseInputPassword: 'Please input password',
@@ -117,6 +119,7 @@ const I18N_CONF = {
     prompt: 'Confirm',
     promptDelete: 'Do you want to delete the service?',
     create: 'Create Service',
+    subscriber: 'Subscriber',
   },
   SubscriberList: {
     subscriberList: 'Subscriber List',
@@ -510,6 +513,14 @@ const I18N_CONF = {
     versionComparison: 'Version Comparison',
     dialogCurrentArea: 'Current Version',
     dialogOriginalArea: 'Previous Version',
+    configComparison: 'Config Comparison',
+    dialogCurrentConfig: 'Current Config',
+    dialogComparedConfig: 'Compared Config',
+    configComparisonTitle: 'Select Config',
+    dataIdInput: 'Please Enter Data Id',
+    groupInput: 'Please Enter Group',
+    namespaceSelect: 'Please Select namespace',
+    configNotFind: 'The Configuration is not found, Please select again',
   },
   ConfigRollback: {
     rollBack: 'Roll Back',
